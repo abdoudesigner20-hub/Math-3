@@ -8,6 +8,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
@@ -24,12 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create www folder and manifest
+      - name: Setup www folder
         run: |
           mkdir -p www
-          if [ ! -f "www/index.html" ]; then
-            echo "<html><body><h1>MathGenius</h1></body></html>" > www/index.html
-          fi
+          cp MathGenius_v5__1_.html www/index.html
           cat > www/manifest.json << 'EOF'
           {
             "name": "MathGenius",
@@ -38,47 +37,67 @@ jobs:
             "display": "standalone",
             "background_color": "#2563eb",
             "theme_color": "#2563eb",
-            "description": "MathGenius Calculator",
             "icons": [
               { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
             ]
           }
           EOF
-          echo "✅ www contents:"
+          echo "✅ www:"
           ls -la www/
 
-      - name: Create icon and splash with Python
+      - name: Setup assets (icon + splash)
         run: |
           pip install Pillow --quiet
           python3 << 'EOF'
-          from PIL import Image, ImageDraw, ImageFont
-          import os
+          from PIL import Image
+          import os, shutil
           os.makedirs("assets", exist_ok=True)
 
-          img = Image.new("RGB", (1024, 1024), "#1e40af")
-          d = ImageDraw.Draw(img)
-          d.ellipse([80,80,944,944], fill="#2563eb")
-          d.ellipse([180,180,844,844], fill="#7c3aed")
-          d.text((512, 512), "MG", fill="white", anchor="mm",
-                 font=ImageFont.load_default(size=260))
-          img.save("assets/icon.png")
+          # ── ICON ──
+          if os.path.exists("icon.png"):
+              img = Image.open("icon.png").convert("RGBA")
+              img = img.resize((1024, 1024), Image.LANCZOS)
+              img.save("assets/icon.png")
+              print("✅ Custom icon used")
+          else:
+              from PIL import ImageDraw, ImageFont
+              img = Image.new("RGB", (1024, 1024), "#1e40af")
+              d = ImageDraw.Draw(img)
+              d.ellipse([60,60,964,964], fill="#2563eb")
+              d.ellipse([160,160,864,864], fill="#7c3aed")
+              d.text((512,512), "MG", fill="white", anchor="mm",
+                     font=ImageFont.load_default(size=260))
+              img.save("assets/icon.png")
+              print("✅ Auto icon generated")
 
-          spl = Image.new("RGB", (2732, 2732), "#1e3a8a")
-          d2 = ImageDraw.Draw(spl)
-          for i in range(0, 2732, 80):
-              d2.line([(0,i),(2732,i)], fill="#1e40af", width=1)
-          d2.text((1366, 1200), "Math", fill="white", anchor="mm",
-                  font=ImageFont.load_default(size=320))
-          d2.text((1366, 1580), "Genius", fill="#93c5fd", anchor="mm",
-                  font=ImageFont.load_default(size=290))
-          spl.save("assets/splash.png")
-          print("✅ assets created")
+          # ── SPLASH ──
+          if os.path.exists("splash.png"):
+              spl = Image.open("splash.png").convert("RGBA")
+              spl = spl.resize((2732, 2732), Image.LANCZOS)
+              spl.save("assets/splash.png")
+              print("✅ Custom splash used")
+          else:
+              from PIL import ImageDraw, ImageFont
+              spl = Image.new("RGB", (2732, 2732), "#1e3a8a")
+              d2 = ImageDraw.Draw(spl)
+              d2.rectangle([0,0,2732,2732], fill="#1e3a8a")
+              d2.ellipse([866,866,1866,1866], fill="#2563eb")
+              d2.text((1366,1200), "Math", fill="white", anchor="mm",
+                      font=ImageFont.load_default(size=300))
+              d2.text((1366,1580), "Genius", fill="#93c5fd", anchor="mm",
+                      font=ImageFont.load_default(size=270))
+              spl.save("assets/splash.png")
+              print("✅ Auto splash generated")
+
+          # copy icon to www for manifest
+          shutil.copy("assets/icon.png", "www/icon.png")
+          print("✅ Assets ready")
           EOF
 
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Generate icons
+      - name: Generate icons and splash
         run: npx @capacitor/assets generate --android
 
       - name: Sync Capacitor
