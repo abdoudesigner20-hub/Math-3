@@ -21,15 +21,52 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
 
-      - run: npx cap add android
+      - name: Verify www folder exists
+        run: |
+          mkdir -p www
+          ls -la www/
 
-      - run: npx cap sync android
+      - name: Generate Icon and Splash Screen
+        run: |
+          mkdir -p assets
+          convert -size 1024x1024 \
+            gradient:'#2563eb-#7c3aed' \
+            -gravity center \
+            -font DejaVu-Sans-Bold \
+            -pointsize 360 \
+            -fill white \
+            -annotate 0 "MG" \
+            assets/icon.png
 
-      - run: chmod +x android/gradlew
+          convert -size 2732x2732 \
+            gradient:'#2563eb-#7c3aed' \
+            -gravity center \
+            -font DejaVu-Sans-Bold \
+            -pointsize 220 \
+            -fill white \
+            -annotate 0 "MathGenius" \
+            assets/splash.png
 
-      - run: cd android && ./gradlew assembleDebug --no-daemon
+          echo "Icon and Splash created:"
+          ls -la assets/
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate app icons
+        run: npx @capacitor/assets generate
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Grant Gradle permission
+        run: chmod +x android/gradlew
+
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
