@@ -24,6 +24,29 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Create www folder and manifest
+        run: |
+          mkdir -p www
+          if [ ! -f "www/index.html" ]; then
+            echo "<html><body><h1>MathGenius</h1></body></html>" > www/index.html
+          fi
+          cat > www/manifest.json << 'EOF'
+          {
+            "name": "MathGenius",
+            "short_name": "MathGenius",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#2563eb",
+            "theme_color": "#2563eb",
+            "description": "MathGenius Calculator",
+            "icons": [
+              { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+            ]
+          }
+          EOF
+          echo "✅ www contents:"
+          ls -la www/
+
       - name: Create icon and splash with Python
         run: |
           pip install Pillow --quiet
@@ -32,38 +55,39 @@ jobs:
           import os
           os.makedirs("assets", exist_ok=True)
 
-          # ── ICON 1024x1024 ──
-          img = Image.new("RGB", (1024, 1024), "#2563eb")
+          img = Image.new("RGB", (1024, 1024), "#1e40af")
           d = ImageDraw.Draw(img)
-          d.ellipse([100,100,924,924], fill="#7c3aed")
-          d.text((512, 480), "MG", fill="white", anchor="mm", font=ImageFont.load_default(size=260))
+          d.ellipse([80,80,944,944], fill="#2563eb")
+          d.ellipse([180,180,844,844], fill="#7c3aed")
+          d.text((512, 512), "MG", fill="white", anchor="mm",
+                 font=ImageFont.load_default(size=260))
           img.save("assets/icon.png")
 
-          # ── SPLASH 2732x2732 ──
-          spl = Image.new("RGB", (2732, 2732), "#2563eb")
+          spl = Image.new("RGB", (2732, 2732), "#1e3a8a")
           d2 = ImageDraw.Draw(spl)
-          d2.text((1366, 1200), "Math", fill="white", anchor="mm", font=ImageFont.load_default(size=300))
-          d2.text((1366, 1550), "Genius", fill="#a5b4fc", anchor="mm", font=ImageFont.load_default(size=280))
+          for i in range(0, 2732, 80):
+              d2.line([(0,i),(2732,i)], fill="#1e40af", width=1)
+          d2.text((1366, 1200), "Math", fill="white", anchor="mm",
+                  font=ImageFont.load_default(size=320))
+          d2.text((1366, 1580), "Genius", fill="#93c5fd", anchor="mm",
+                  font=ImageFont.load_default(size=290))
           spl.save("assets/splash.png")
-
-          print("✅ Icon:", os.path.getsize("assets/icon.png"), "bytes")
-          print("✅ Splash:", os.path.getsize("assets/splash.png"), "bytes")
+          print("✅ assets created")
           EOF
 
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Generate app icons
-        run: npx @capacitor/assets generate
+      - name: Generate icons
+        run: npx @capacitor/assets generate --android
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Grant Gradle permission
-        run: chmod +x android/gradlew
-
       - name: Build APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
