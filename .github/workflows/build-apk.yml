@@ -24,34 +24,31 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify www folder exists
+      - name: Create icon and splash with Python
         run: |
-          mkdir -p www
-          ls -la www/
+          pip install Pillow --quiet
+          python3 << 'EOF'
+          from PIL import Image, ImageDraw, ImageFont
+          import os
+          os.makedirs("assets", exist_ok=True)
 
-      - name: Generate Icon and Splash Screen
-        run: |
-          mkdir -p assets
-          convert -size 1024x1024 \
-            gradient:'#2563eb-#7c3aed' \
-            -gravity center \
-            -font DejaVu-Sans-Bold \
-            -pointsize 360 \
-            -fill white \
-            -annotate 0 "MG" \
-            assets/icon.png
+          # ── ICON 1024x1024 ──
+          img = Image.new("RGB", (1024, 1024), "#2563eb")
+          d = ImageDraw.Draw(img)
+          d.ellipse([100,100,924,924], fill="#7c3aed")
+          d.text((512, 480), "MG", fill="white", anchor="mm", font=ImageFont.load_default(size=260))
+          img.save("assets/icon.png")
 
-          convert -size 2732x2732 \
-            gradient:'#2563eb-#7c3aed' \
-            -gravity center \
-            -font DejaVu-Sans-Bold \
-            -pointsize 220 \
-            -fill white \
-            -annotate 0 "MathGenius" \
-            assets/splash.png
+          # ── SPLASH 2732x2732 ──
+          spl = Image.new("RGB", (2732, 2732), "#2563eb")
+          d2 = ImageDraw.Draw(spl)
+          d2.text((1366, 1200), "Math", fill="white", anchor="mm", font=ImageFont.load_default(size=300))
+          d2.text((1366, 1550), "Genius", fill="#a5b4fc", anchor="mm", font=ImageFont.load_default(size=280))
+          spl.save("assets/splash.png")
 
-          echo "Icon and Splash created:"
-          ls -la assets/
+          print("✅ Icon:", os.path.getsize("assets/icon.png"), "bytes")
+          print("✅ Splash:", os.path.getsize("assets/splash.png"), "bytes")
+          EOF
 
       - name: Add Android platform
         run: npx cap add android
@@ -68,7 +65,8 @@ jobs:
       - name: Build APK
         run: cd android && ./gradlew assembleDebug --no-daemon
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: MathGenius-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
